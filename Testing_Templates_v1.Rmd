@@ -1,0 +1,857 @@
+---
+title: "Factors Related to STI Testing Among African American Congregants"
+author:
+- address: "2411 Holmes Rd Kansas City, MO"
+  affiliation: "1"
+  corresponding: yes
+  email: "adulojuajijolan@umkc.edu"
+  name: "Natasha Aduloju-Ajijola, PhD, MPH"
+- affiliation: "2"
+  name: "Nia Johnson"
+- affiliation: "3"
+  name: "Erin Moore, PhD"
+- affiliation: "4"
+  name: "Staryn Hawes, PhD"
+- affiliation: "1"
+  name: "Carole Bowe-Thompson"
+- affiliation: "1"
+  name: "Jannette Berkley-Patton, PhD"
+- affiliation: "1"
+- id: "1"
+  institution: "University of Missouri, Kansas City, School of Medicine"
+- id: "2"
+  institution: "Saint Louis, School of Medicine"
+- id: "3"
+  institution: "Stetson University"
+- id: "4"
+  institution: "Washington State University"
+author_note: |
+  Add complete departmental affiliations for each author here. Each new line herein must be indented, like this line.
+  Enter author note here.
+output: rticles::elsevier_article
+class: "elsarticle"
+editor_options:
+  chunk_output_type: inline
+figsintext: yes
+figurelist: no
+footnotelist: no
+keywords: "African Americans, sexually transmitted infections, STI    testing,faith-based organizations, faith leaders, church members"
+lineno: yes
+mask: no
+bibliography: ["STIref6.bib"]
+shorttitle: STI Testing in Church
+tablelist: no
+abstract: |
+  Background: Sexually transmitted infections (STIs) disproportionately impact communities of color. 
+  There is renewed attention on these sexual health disparities and the need for routine screening for STIs. 
+  African American churches are increasingly called on to assist with HIV education and screening efforts, however, little is known about how churches can assist with screening for other STIs. 
+  This study examines demographic, behavioral, and social factors associated with receipt of an STI test in the last four months among church members and community members served through church outreach ministries.
+  Methods: Baseline survey data on receipt of STI screening was collected from two African American churches during the Taking It to the Pews pilot project, an HIV screening, prevention, and linkage to care church-based intervention. 
+  Results: Participants (N = 120) were primarily female (62.5%), with an average age of 41.7 (SD = 13.0), 87.6% attended at least one worship service a week, and 52% reported never using a condom. 
+  In the last four months, 19%, 19%, and 17% respectively had tested for gonorrhea, chlamydia, and syphilis. 
+  Predictors of STI testing in the last four months included being single, positive attitudes towards condom, and high levels of religiosity. 
+  Conclusion: This study has implications for the development of church-based STI screening and education. 
+
+wordcount: 1574
+---
+
+```{r load_packages, include = FALSE}
+library("papaja")
+library("foreign")
+library("Hmisc")
+library("memisc")
+library("haven")
+library("tidyr")
+#library("plotly")
+library("knitr")
+library("plyr")
+library("stats")
+#library("gmodels")
+library("flextable")
+library("ReporteRs")
+library("officer")
+library("olsrr")
+library("labelled")
+library("broman")
+```
+
+```{r functions, echo=FALSE}
+
+rbind.all.columns <- function(inputx, inputy) {
+  x.diff <- setdiff(colnames(inputx), colnames(inputy))
+  y.diff <- setdiff(colnames(inputy), colnames(inputx))
+  
+  inputx[, c(as.character(y.diff))] <- NA
+  inputy[, c(as.character(x.diff))] <- NA
+  return(rbind(inputx, inputy))
+}
+create.SD <- function(input1, lable) {
+  lable <- summary(input1, na.rm = TRUE)
+  lable1 <- round(as.numeric(lable[4]), 1)
+  lable2 <- round(sd(as.numeric(input1), na.rm = TRUE), 1)
+  lable3 <- paste0(lable1, " ", "(", lable2, ")")
+  return(lable3)
+}
+create.freq <- function(input1, lable) {
+  lable <- plyr::count(na.omit(input1))
+  lable2 <- round(lable[,2]/sum(lable[,2])*100, 1)
+  lable3 <- paste0(lable[,2], " (", lable2, "%)")
+  return(cbind(as.character(lable[,1]), lable3))
+}
+rbind.data.small <- function(inputx, inputy) {
+  x.diff <- length(setdiff(colnames(inputx), colnames(inputy)))
+  y.diff <- length(setdiff(colnames(inputy), colnames(inputx)))
+  
+  if(x.diff < 0){
+    for (i in 1:x.diff){
+      inputx <-cbind(inputx,NA)
+    }
+    colnames(inputx) <- colnames(inputy)
+  }
+  else{
+    for(i in 1:y.diff){
+      inputy <- cbind(inputy,NA)
+    }
+    colnames(inputy) <- colnames(inputx)
+  }
+  
+  return(rbind(inputx, inputy))
+}
+mod.freq <- function(input1) {
+  tempDF <- data.frame(table(input1))
+  lable2 <- round(tempDF[,2]/sum(tempDF[,2])*100, 1)
+  lable3 <- paste0(tempDF[,2], " (", lable2, "%)")
+  return(cbind(as.character(tempDF[,1]), lable3))
+}
+rbind.test <- function(inputx, inputy) {
+  x.diff <- length(setdiff(colnames(inputx), colnames(inputy)))
+  y.diff <- length(setdiff(colnames(inputy), colnames(inputx)))
+  
+  if(x.diff > 0){
+    for (i in 1:x.diff){
+      inputy <-cbind(inputy,NA)
+    }
+    colnames(inputy) <- colnames(inputx)
+  }
+  else{
+    for(i in 1:y.diff){
+      inputx <- cbind(inputx,NA)
+    }
+    colnames(inputx) <- colnames(inputy)
+  }
+  
+  return(rbind(inputx, inputy))
+}
+table.prep <- function (input1, input2, input3){
+  input2.x <- data.frame(mod.freq(input1, input2))
+  names(input2.x) <- c("codes", "lable3")
+  input3.x <- as.character(input3[2])
+  input2 <- cbind(input3.x, spread(input2.x, codes, lable3))
+  return(input2)
+}
+mean.for.sum<- function(input1) {
+  lable <- summary(as.numeric(input1, na.rm = TRUE))
+  lable1 <- round(as.numeric(lable[4]), 1)
+}
+
+p.round <- function(x){
+  if(x < .001) return(paste('<', '.001'))
+  if(x > .250) return(paste('>', '.250'))
+  paste('=', myround(x,3))
+}
+
+myttest <-function(x, y){
+  round(t.test(x~y, conf.level = 0.95)$p.value, 3)
+}
+mychi <- function(x, y) {
+  round(suppressWarnings(chisq.test(x, y)$p.value), 3)
+}
+```
+
+```{r functions 2, echo= FALSE}
+param_est <- function(char_vector){
+  
+  start = grep("Parameter Estimates",char_vector) + 2
+  end = which("" == char_vector)
+  for (x in end){
+    if (x > start){
+      end <- x - 2
+      break
+    }
+  }
+  
+  info <- char_vector[start:end]
+  info <- info[-2]
+  info <- gsub("^\\s+|\\s+$", "", info)
+  info <- gsub("\\s{2,9}", "\t", info)
+  
+  DF <- data.frame(do.call(rbind, strsplit(info, "\t", fixed=FALSE)), stringsAsFactors=FALSE)
+  colnames(DF) <- as.character(DF[1,])
+  DF <- DF[-1:-2,]
+  DF <- data.frame(DF[,1], sapply(DF[,2:8], as.numeric))
+  
+  return (DF)
+}
+getData<-function(rows,refDF,present){
+  
+  ##Error checking to ensure that present is only 0 or 1
+  ## any rows chosen, therefore, must be a binary variable
+  if (present!=1 && present !=0){
+    print("###Present much be either 0 or 1")
+    return
+  }
+  
+  ##Usage you must pass in a vector using the names of the columns of interest,
+  ## these will be reported out as the row names, as well as the data.frame of interest
+  # Example:  
+    # rows<-c("na_13_BloodPressure","na_13_Cholesterol","na_13_Glucose","na_13_STI_HIV","na_13_Asthma",
+    #              "na_13_HeartDisease_Stroke","na_13_Colon_Cancer","na_13_Prostate_Cancer", "na_13_Mammography",
+    #              "na_13_Pap","na_13_MntlHealthCond")
+  
+
+  cols<-c("Overall","Sex","Sex")
+  
+  ##Initialize the data.frame to receive data
+  newDF<-data.frame()
+  
+  ##For each heading listed in the rows vector...
+  for(i in rows){
+    ##For each number from 1 to the number of columns in cols
+    ## check each condition to sort the data
+    ## these conditions are specific and will need to be updated if the conditions change
+    ## for example: if the age range changes, 45 will need to be updated
+    for(j in 1:length(cols)){
+             
+      if (j==1){
+        output<-nrow(refDF[which(refDF[,i]==present),])
+      }
+      else if (j==2){
+        output<- c(output,nrow(refDF[which(refDF[,cols[j]]==1 & refDF[,i]==present),]))
+      }
+      else if (j==3){
+        output<- c(output,nrow(refDF[which(refDF[,cols[j]]==2 & refDF[,i]==present),]))
+      }
+      
+    }
+    ##One row has been completed, save the information to a data.frame
+    newDF<- rbind(newDF,output)
+  }
+  
+  ##Set the column and row names of the data.frame
+  colnames(newDF)<-cols
+  rownames(newDF)<-rows
+  
+  ##Return the data.frame from this function
+  newDF
+}
+
+GetNBdata <- function(list, rows, refDF){
+  
+  #Parameters:
+  ## list: a list of data.frame columns to be processed
+  ##    Example: list(data2$Sexual_ID,data2$Monthly_Income)
+  ## rows: a vector of column names to assist in processing,
+  ##    it must match which, and the order of, columns used to make the list
+  ##    Example: if list is as described above, then rows must be
+  ##        c("Sexual_ID","Monthly_Income")
+  ## refDF: the data.frame used to get the data
+  ##    Example: if the list is made using data2$Sexual_ID, then the refDF will be data2
+  
+  ## This function is expecting these columns to be of class labelled,
+  ##    so the labelled library needs to be imported
+  #library(labelled)
+  
+  ## Set the columns of refDF that are of interest
+  cols<-c("Overall","Sex","Sex")
+  
+  ##Initialize the data.frame and rNames to receive data
+  newDF<-data.frame()
+  rNames<-c()
+  
+  ## Iterate over the number of items contained in the list
+  for(i in 1:length(list)){
+    
+    # Each item in the list is of class labelled, so it needs to
+    #   be converted to a factor level variable.
+    #   Here, we store the number values to identify particular rows 
+    #   as well as the labels to label the rows later.
+    vals<-levels(to_factor(list[[i]], levels="values"))
+    names<-levels(to_factor(list[[i]], levels="labels"))
+    
+    # Iterate over the number of levels
+    for (k in 1:length(vals)){
+      #Find the information below in each of the columns and store it
+      #  to a temp variable to build the data.frame
+      for(j in 1:length(cols)){
+      
+        if (j==1){
+          output<-nrow(refDF[which(refDF[,rows[i]]==as.numeric(vals[k])),])
+        }
+        else if (j==2){
+          # Coding for Males
+          output<- c(output,nrow(refDF[which(refDF[,cols[j]]==1 & refDF[,rows[i]]==as.numeric(vals[k])),]))
+        }else if (j==3){
+          # Coding for Females
+          output<- c(output,nrow(refDF[which(refDF[,cols[j]]==2 & refDF[,rows[i]]==as.numeric(vals[k])),]))
+        }
+      
+      }
+      ##One row has been completed, save the information to a data.frame
+      newDF<- rbind(newDF,output)
+    }
+    #Build the rownames based on the factor labels for the current section
+    rNames<-c(rNames,names)
+    
+    
+  }
+  
+  ##Set the column and row names of the data.frame
+  colnames(newDF)<-cols
+  rownames(newDF)<-rNames
+  
+  ##Return the data.frame from this function
+  newDF
+}
+
+dataNBPercent<-function(inputDF, refDF){
+  
+  ##Requires data.frame obtained from getData(), and the original data.frame
+  ## passed to getData()
+  
+  ##inputDF format: Overall, Condition 1 (grouped over 2 cols),
+  ##  Condition 2 (grouped over 2 cols)...etc
+  
+  cols<-c("Overall","Sex","Sex")
+  
+  
+  ##Calculate the totals for each category from the original data
+  totalN<-nrow(refDF[,1])
+  totalMale<-nrow(refDF[which(refDF[,cols[2]]==1),])
+  totalFemale<-nrow(refDF[which(refDF[,cols[3]]==2),])
+  
+  ##Initialize the output data.frame
+  outputDF<-data.frame()
+  
+  ##Use string operations to glue the count data with the percentage and '%'
+  overall<-paste(inputDF[,1]," (",round(inputDF[,1]/totalN*100,1),"%)", sep="")
+  male<-paste(inputDF[,2]," (",round(inputDF[,2]/totalMale*100,1),"%)", sep="")
+  female<-paste(inputDF[,3]," (",round(inputDF[,3]/totalFemale*100,1),"%)", sep = "")
+  
+  #Build the data.frame from the individual columns created above
+  outputDF<-cbind(overall, male, female)
+  
+  #Name the rows in the data.frame
+  rownames(outputDF)<-rownames(inputDF)
+  
+  #Return the data.frame
+  outputDF
+}
+
+dataPercent<-function(inputDF, refDF){
+  
+  ##Requires data.frame obtained from getData(), and the original data.frame
+  ## passed to getData()
+  
+  ##inputDF format: Overall, Condition 1 (grouped over 2 cols),
+  ##  Condition 2 (grouped over 2 cols)...etc
+
+  cols<-c("Overall","Sex","Sex")
+  
+  
+  ##Calculate the totals for each category from the original data
+  totalN<-nrow(refDF[,1])
+  totalMale<-nrow(refDF[which(refDF[,cols[2]]==1),])
+  totalFemale<-nrow(refDF[which(refDF[,cols[3]]==2),])
+  
+  ##Initialize the output data.frame
+  outputDF<-data.frame()
+  
+  ##Use string operations to glue the count data with the percentage and '%'
+  overall<-paste(inputDF[,1]," (",round(inputDF[,1]/totalN*100,1),"%)", sep="")
+  male<-paste(inputDF[,2]," (",round(inputDF[,2]/totalMale*100,1),"%)", sep="")
+  female<-paste(inputDF[,3]," (",round(inputDF[,3]/totalFemale*100,1),"%)", sep = "")
+  
+  #Build the data.frame from the individual columns created above
+  outputDF<-cbind(overall, male, female)
+  
+  #Name the rows in the data.frame
+  rownames(outputDF)<-rownames(inputDF)
+  
+  #Return the data.frame
+  outputDF
+}
+
+naAttachStars<-function(inputDF, starDF){
+  
+  ##InputDF is the percentage DF, starDF is the converted ChiSq p.values into asterisks
+  ## p.values are in pairs of columns starting at col 2
+  
+  ##String operations to glue the previously obtained count (num%) with
+  ## the significance level stars
+  overall<-paste(inputDF[,1], sep="")
+  male<-paste(inputDF[,2],starDF[,2], sep="")
+  female<-paste(inputDF[,3],starDF[,2], sep="")
+  
+  ##Build the data.frame by column binding the vectors created above
+  outputDF<-cbind(overall, male, female)
+  
+  ##Set the row names
+  rownames(outputDF)<-rownames(inputDF)
+  
+  ##Return the data.frame
+  outputDF
+}
+
+naChiSq<-function(inputDF, rows){
+  
+  ##Input the original data.frame and the list of columns.
+  ## This then performs the chisq.test between the sub-categories age, gender, etc.
+  
+  ##Initialize the storage vectors
+  gender<-c()
+
+  ##For each name in rows...
+  for(i in rows){
+    ##Calculate the p.value for various chisq.tests
+    ## ensure that the first parameter is entered as a binary term
+    ## For example: inputDF$na_3_Age < 45 will return TRUE or FALSE
+    
+    gender<-c(gender,round(chisq.test(table(inputDF$na_2_Gender,as.data.frame(inputDF[,i])[,1]))$p.value,3))
+      }
+  
+  ##Build the data.frame by binding each of the vectors created above as a column
+  output<-cbind(age,gender,insured,attend)
+  
+  ##Set the row names
+  rownames(output)<-rows
+  
+  ##Return the data.frame
+  output
+  
+}
+
+naGetStars<-function(inputDF){
+  
+  ##Input the p.values obtained from naChiSq to get a data.frame of
+  ## asterisks correspdonding to the level of significance.
+  ## 0.05  = *
+  ## 0.01  = **
+  ## 0.001 = ***
+  
+  numCols<-ncol(inputDF)
+  
+  ifelse(inputDF[,1:numCols]<=0.05,ifelse(inputDF[,1:numCols]<=0.01,ifelse(inputDF[,1:numCols]<=0.001,'***','**'),'*'),'')
+}
+
+theme_flex_apa <- function(myft){
+  
+   myft <- bold(myft, part = "header")
+   myft <- italic(myft, part = "header")
+   myft <- italic(myft, part = "footer")
+   myft <- fontsize(myft, part = "body", size = 8)
+   myft <- fontsize(myft, part = "header", size = 9)
+   myft <- fontsize(myft, part = "footer", size = 7)
+   myft <- align(myft, align = "left",  part = "all")
+   myft <- align(myft, align = "center", part = "header")
+   myft <- padding(myft, padding = 0, part = "all")
+   myft <- font(myft, fontname = "Times New Roman", part = "all")
+   myft <- border_remove(myft)
+  
+   out_b <- fp_border(color = "black", style = "solid", width = 1)
+   myft <- hline_bottom(myft, border = out_b)
+   myft <- hline_top(myft, border = out_b, part = "header")
+   myft <- hline_top(myft, border = out_b)
+   
+  # theme_vanilla <- function(x){
+
+  # x <- hline( x, border = std_b, part = "all")
+  # x <- hline_top( x, border = std_b, part = "header" )
+  # x <- style( x = x, pr_p = fp_par(text.align = "right", padding = 2), part = "all")
+  # x <- bg(x = x, bg = "transparent", part = "all")
+  # x <- bold(x = x, bold = TRUE, part = "header")
+  # x
+#}
+  
+   return(myft)
+}
+
+```
+
+```{r analysis_preferences, echo=FALSE}
+# Seed for random number generation
+set.seed(100)
+```
+# Introduction
+  In recent years, there has been a resurgence in the incidence of sexually transmitted infections (STIs) in the United States.
+  African Americans are disproportionally impacted by STIs; they account for 28.1% of new chlamydia infections, 51.0% of new gonorrhea infections, and 36.6% of the syphilis infections, despite representing 13% of the U.S. population [@RN811; @RN965]. 
+African American women in particular experience some of the greatest health disparities with chlamydia, gonorrhea, and syphilis rates that are 5.1, 8.9, and 7.0 times respectively, the rate of white women [@RN965]. 
+This increased STI incidence is concerning due to potential consequences ranging from pain to uterine and fallopian tube damage, which often leads to infertility. 
+Many infected people are asymptomatic and do not know that they are infected, leading to delayed treatment and greater likelihood of transmitting infections to their sexual partners. 
+To address this issue, the Centers for Disease Control and Prevention (CDC) highly recommends routine STI prevention education, screening, and treatment services for all sexually active Americans [@RN841].
+However, the availability of routine and repeat screenings does little for low-income African Americans who may not have access to or do not regularly seek health services [@RN937].
+
+  STI interventions for African Americans have been provided in health-related and community settings (e.g., family planning clinics, barbershops, juvenile detention centers) [@RN936; @RN938; @RN939]. 
+In addition, strategies are continuously being identified to increase the number of African Americans who are getting tested in non-clinical and non-traditional settings (e.g., Black churches, college campuses, street testing for the homeless). 
+The African American church may be an ideal community setting to assist in STI education and screening efforts. 
+There is a growing number of studies that focus on the church as a setting to increase reach and influence on HIV education and screening among African Americans [@RN944; @RN945].
+The Black church may be a particularly important venue to increase access to STI screening for several reasons. 
+The Black church remains a powerful and influential institution with substantial reach in many African American communities [@RN320; @RN681; @RN689], and most African Americans attend church weekly [@RN679; @RN680]. 
+Also, African American churches provide outreach services (e.g., food/clothing pantries, daycare programs, recovery programs) to their underserved and vulnerable (e.g., low-income, homeless) community members [@RN681; @RN682; @RN768].
+
+  African American women are disproportionately affected by STIs and are also a significant portion of the congregation within Black churches. 
+@RN851 found that among African American churchgoing women, 82% had a history of STIs and 81% inconsistently used condoms, which suggests that routine, accessible STI screening in church settings may be highly beneficial for this population.
+Additionally, @RN949 found sexual health interventions that were culturally and religiously tailored were more effective at enhancing abstinance and increasing safer sex practices among African American women. 
+
+  Despite the increasing number of HIV studies conducted in church settings, few studies have reported on STI testing behaviors among African American church members, and none have reported on reasons STI testing was sought.
+To better inform the development of church-based STI education and screening services for African Americans, there is a need to understand prevalance and the factors associated with STI testing among church-affiliated populations. 
+This study explores: a) receipt of STI testing in the previous four months; b) reasons and locations STI testing was sought; and c) demographic, behavioral, and social predictors of receipt of STI testing among an African American-church population. 
+
+# Methods
+
+### Participants and procedures.
+
+Two African American churches (a catholic church and a non-demininational church) in urban Kansas City, MO, that had previously served as waitlist controls in the Taking It to the Pews (TIPS) pilot study, a religiously-tailored HIV education, screening, and linkage to care intervention in African American churches described elsewhere [@RN944; @RN950; @RN1058], participated in this study.
+After the completion of the TIPS pilot study, these churches were then trained to implement TIPS-STI with an additional focus on increasing STI education and screening (gonorrhea, chlamydia, syphilis) among church and community members. 
+Participants were recruited from both churches via flyers distributed during church services and through the churches’ community outreach events (e.g., food programs, social services). 
+Participants were persons aged 18 and older who attended the participating church at least once/month as a church member or who used church outreach services at least four times/year. 
+They received \$10 for completion of a baseline survey and \$10 for completion of a 4-month survey to access implementation feasibility and uptake of receipt of STI and HIV testing. 
+Study procedures were approved by the University of Missouri-Kansas City Institutional Review Board. 
+
+## Survey Measures 
+
+### Demographics.
+
+Participants provided demographic information (e.g., age, gender, education, insurance, marital status, children, years of church membership, church denomination). 
+Participants also reported where they received their income and their economic status (e.g., working full or part time, on general assistance).
+Religious beliefs and behaviors (religiosity) were accessed: a) with seven items from the Religious Background and Behavior  survey [@RN801] on participants’ engagement in church activities (e.g., prayed, meditated, attended a worship service) in the past year using an 8-point Likert scale (0 = *Never*  to 7 = *Always*) and b) one item regarding their description of their religiosity (e.g., atheist, spiritual, religious). 
+The religiosity summed score ($\alpha$ = .77) was analyzed with a higher score indicates increased faith.
+
+### STI testing measures.
+
+Items from national surveys that assessed HIV testing [@RN853] were adapted to collect data on participants’ STI testing behaviors.
+Participants were asked: “Have you been tested for gonorrhea in the past four months?” (Yes/No); “Have you been tested for chlamydia in the past four months?” (Yes/No); and “Have you been tested for syphilis in the past four months?” (Yes/No). 
+Additionally, participants were asked to report the reasons why they received STI testing (e.g., applied for health insurance, entered into a new relationship) and to indicate where they received their most recent STI test (e.g., clinic or health center, health department, doctor’s office).
+In addition, information on the amount of encouragement from referents (friends, family, and church members) to get tested for STIs was measured with three items (one item for each referent) and rated on a 6-point Likert-type scale (0 = *None* to 5 = *A lot*).
+
+### Sexual and other HIV risk behaviors.
+
+An adapted version of the Behavioral Risk Assessment Tool (BRAT) developed by the Wisconsin HIV Prevention Evaluation Work Group -@RN854 was used to collect information about HIV risk factors. 
+STI risk factors were measured with 12 Yes/No items (e.g., been homeless, had sex while high on drugs or alcohol, diagnosed with hepatitis C), which were summed with higher scores indicating higher levels of sexual risk behaviors.
+Participants were asked if they had ever had sex (Yes/No). 
+The number of sexual partners in the last four months were measured with two items asking the number of male and female sex partners with whom they ever had sex (oral, vaginal, anal) and who they had sex with in the last four months.
+In addition, condom beliefs (e.g., condoms are effective against STIs, condoms are an effective method of birth control) were assessed, with higher scores representing more positive beliefs.
+For sexually active participants, frequency of inconsistent condom use during the previous four months was assessed on a single 5-point Likert scale item (0 = *Always* to 4 = *Never*).
+
+
+### Health Screenings
+
+Health screenings in the past 4 months were assessed with a summation of seven Yes/No items evaluating types of screenings participants may have received (e.g., blood pressure screening, colon cancer screening).
+The health screening summed score was analyzed with higher scores indicating increased health screenings.
+
+### Other psychosocial measures.
+
+STI-related stigma was measured with a summation of five items adapted from national studies on HIV/AIDS stigma [@RN285; @RN478]:“How strongly would you agree or disagree that scientists and doctors can be trusted to tell the truth about STIs?” (0 = *Strongly agree* to 3 = *Strongly disagree*); “How concerned would you be that you might be treated differently or discriminated against if your test results were positive for STIs?” (0 = *Not concerned at all* to 3 = *Very concerned*); “suppose you attended a church and found out some of the members were infected with STDs” (0 = *Very comfortable* to 3 = *Very comfortable*); “how comfortable would you feel about sharing a pew with him/her?” (0 = *Very comfortable* to 3 = *Very comfortable*); “how strongly would you agree or disagree that people with STDs are responsible for having their illness?” (0 = *Disagree strongly* to 3 = *Agree strongly*; “How afraid are you of people who are infected with STDs?” (0 = *Not at all afraid* to 3 = *Very afraid* ($\alpha$ = .53).
+
+
+### Data Analysis
+
+Means and frequencies were used to describe participants’ characteristics (e.g., demographics, sexual behaviors, STI stigma, religiosity) and STI testing received in the past four months. 
+Bivariate analyses were performed to identify significant relationships between study variables and four month STI testing using independent t-tests with continuous variables and chi-square analysis with dichotomous variables. 
+All significant associations with four month STI testing (p < .05) from the bivariate analysis were included as predictors in the binary logistic regression models. 
+Analyses were conducted with `r cite_r("r-references.bib")`.
+
+
+# Results
+
+```{r setup, include=FALSE, echo=FALSE}
+data <- foreign::read.spss("STD_Frontiers_Survey Database_10_15_2013 NAA.sav", to.data.frame = T, na.strings = "999")
+data2 <- read_sav("STD_Frontiers_Survey Database_10_15_2013 NAA.sav")
+
+risk <- data2$InjectedStreetDrugs + data2$BeenTreatment + data2$BeenHomeless + data2$CorrectionalSystem + data2$DomesticAbuse + data2$SomeoneBeenInPrison + data2$HasSexMSM + data2$SexInjectionDrugs + data2$SexWhileHigh
+
+data$risk <- risk
+data2$risk <- risk
+```
+
+
+```{r, echo= FALSE}
+##Table 1
+
+TabNBlistSI <- list(data2$Sexual_ID)
+TabNBlistMS <- list(data2$Marital_Status)
+TabNBlistEd <- list(data2$Education)
+TabNBlistMI <- list(data2$Monthly_Income) 
+TabNBlistC4 <- list(data2$Condoms_4months) 
+
+TabNBrowsSI <- c("Sexual_ID") 
+TabNBrowsMS <- c("Marital_Status") 
+TabNBrowsEd <- c("Education") 
+TabNBrowsMI <- c("Monthly_Income") 
+TabNBrowsC4 <- c("Condoms_4months")
+Newrow <- ""
+
+TabBrows <- c("Children", "BloodPressure_4months", "Bloodglucose_4months", "Prostate_4months", "Mammogram_4months", "Pap_4months", "Cholesterol_4months", "VagSex_4months", "OralSex_4months", "AnalSex_4months")
+
+TabBa <- getData(TabBrows, data2, 1)
+
+TabNBSIa <- GetNBdata(TabNBlistSI, TabNBrowsSI, data2)
+TabNBMSa <- GetNBdata(TabNBlistMS, TabNBrowsMS, data2)
+TabNBEda <- GetNBdata(TabNBlistEd, TabNBrowsEd, data2)
+TabNBMIa <- GetNBdata(TabNBlistMI, TabNBrowsMI, data2)
+TabNBC4a <- GetNBdata(TabNBlistC4, TabNBrowsC4, data2)
+
+TabBb <- dataPercent(TabBa, data2)
+rownames(TabBb) <- c("Have children", "Blood Pressure", "Blood Glucose", "Prostate Cancer", "Mammogram", "Pap", "Cholesterol", "Vaginal Sex", "Oral Sex", "Anal Sex")
+
+TabNBSIb <- dataNBPercent(TabNBSIa, data2)
+TabNBMSb <- dataNBPercent(TabNBMSa, data2)
+rownames(TabNBMSb) <- c("Single", "Not married, but living with partner", "Married", "Separated", "Divorced", "Widowed")
+TabNBEdb <- dataNBPercent(TabNBEda, data2)
+rownames(TabNBEdb) <- c("8th Grade or below", "9th to 11th grade", "High School Graduate or GED", "Post High School or Technical Training", "Some college but no degree", "Associate's Degree or Technical School Certificate", "College Degree", "Graduate Courses", "Graduate Degree")
+TabNBMIb <- dataNBPercent(TabNBMIa, data2)
+rownames(TabNBMIb) <- c("$0 - $1,000", "$1,001 - $2,000", "$2,001 - $2,500", "$2,501 - $3,000", "More than $3,000", "Don't Know")
+TabNBC4b <- dataNBPercent(TabNBC4a, data2)
+rownames(TabNBC4b) <- c("Always", "Usually", "Sometimes", "Never")
+
+TabCombv <- rbind(Newrow, TabNBSIb[c(-5),], Newrow, TabNBMSb, TabBb[1,1:3], Newrow, TabNBEdb, Newrow, TabNBMIb, Newrow, TabBb[2:9,1:3], Newrow, TabNBC4b)
+
+TabCombv1 <- cbind(rownames(TabCombv), TabCombv)
+TabCombv1 <- apply(TabCombv1, 2, as.character)
+TabCombv1[1,1] <- "Sexual Orientation"
+TabCombv1[6,1] <- "Marital Status"
+TabCombv1[13,1] <- "Have Children"
+TabCombv1[14,1] <- "Education"
+TabCombv1[24,1] <- "Monthly Income"
+TabCombv1[31,1] <- "Health Screening in previous 4 months"
+TabCombv1[40,1] <- "Condom Use the previous 4 months"
+TabCombv1 <- data.frame(TabCombv1)
+
+```
+
+```{r, echo = FALSE, include=TRUE, results='asis'}
+TabComregta <- regulartable(TabCombv1, col_keys = c("V1", "overall", "male", "female"))
+TabComregta <- set_header_labels(TabComregta, V1 = "Characteristics", overall = "Overall N (%)", male = "Men", female = "Women")
+TabComregta <- add_header(TabComregta, V1 = "Characteristics", overall = "Overall N (%)", male = "Gender n (%)", female = "Gender n (%)",  top = TRUE)
+TabComregta <- add_footer(TabComregta, V1 = "^a*Responses are not mutually exclusive")
+TabComregta <- merge_h(TabComregta, part = "header")
+TabComregta <- merge_v(TabComregta, part = "header")
+TabComregta <- merge_at(TabComregta, i = 1, j = 1:4, part = "footer")
+TabComregta <- add_header(TabComregta, V1 = "Table 1. Participant Demographics")
+TabComregta <- merge_at(TabComregta, i = 1, j = 1:4, part = "header")
+ft <- theme_flex_apa(TabComregta)
+ft <- autofit(ft)
+#htmltools_value(ft)
+```
+```{r, echo=FALSE, include=TRUE, results= 'asis'}
+# TabCompdf <- TabCombv1
+# TabCompdfv1 <- kable(TabCompdf, "latex", caption = "Table 1. Participant Demographics")%>%
+#   kable_styling(latex_options = "hold_position", position = "center")%>%
+#   add_header_above(c("", "Overall" = 2, "Gender" = 3, "Gender" = 4))%>%
+#   footnote(general = "aResponses are not mutually exclusive")
+
+```
+
+```{r, echo=FALSE, include= FALSE}
+##random ish for intext information
+
+Sex <- plyr::count(data$Sex)
+```
+
+## Participant Characteristics
+
+Participants (N = `r sum(plyr::count(data$Sex)[,2])`) were primarily female (`r round(Sex[,2]/sum(Sex[,2])*100, 1)[2]`%, *n* = `r plyr::count(data$Sex)[2,2]`) and ranged in age from `r range(data2$Age)[1]` to `r range(data2$Age)[2]` (M = `r round(mean(data2$Age), 1)`, SD = `r round(sd(data2$Age), 1)`), as shown in Table 1. 
+The majority of the participants were heterosexual (`r round(plyr::count(data2$Sexual_ID)[1,2]/sum(plyr::count(data2$Sexual_ID)[,2])*100, 1)`%, *n* = `r plyr::count(data2$Sexual_ID)[1,2]`), Baptist (`r round(plyr::count(data2$Denomination)[1,2]/sum(plyr::count(data2$Denomination)[,2])*100, 1)`%, *n* = `r plyr::count(data2$Denomination)[1,2]`), and married (`r round(plyr::count(data2$Marital_Status)[2,2]/sum(plyr::count(data2$Marital_Status)[,2])*100, 1)`%, *n* = `r plyr::count(data2$Denomination)[2,2]`). 
+Demographically, `r round(plyr::count(data2$Member)[2,2]/sum(plyr::count(data2$Member)[,2])*100, 1)`% (*n* = `r plyr::count(data2$Member)[2,2]`) were members of the church where they completed the survey and `r round(plyr::count(data2$Member)[1,2]/sum(plyr::count(data2$Member)[,2])*100, 1)`% (*n* = `r plyr::count(data2$Member)[1,2]`) were community members. The average length of church membership was `r round(summary(data2$Member_Length)[4], 1)` years (SD = `r round(sd(data2$Member_Length, na.rm = TRUE), 1)`).
+Participants had a mean religiosity score of `r round(summary(data2$relig_sum), 1)[4]` (SD = `r round(sd(data2$relig_sum, na.rm = TRUE), 1)`, range = `r range(data2$relig_sum)[1]`- `r range(data2$relig_sum)[2]`); `r round(sum(plyr::count(data2$Worship_Service)[5:8,2])/sum(plyr::count(data2$Worship_Service)[,2])*100, 1)`% (*n* = `r sum(plyr::count(data2$Worship_Service)[5:8,2])`), attended church at least once a week or more times a week, and `r round(plyr::count(data2$Religiosity)[4,2]/sum(plyr::count(data2$Religiosity)[,2])*100 ,1)`% (*n* = `r plyr::count(data2$Religiosity)[4,2]`), on a scale from Atheist to religious,  considered themselves to be religious.
+Most participants had an annual exam with their physician within the past 12 months (`r round(plyr::count(data2$AnnualExam)[1,2]/sum(plyr::count(data2$AnnualExam)[,2])*100, 1)`%, *n* = `r plyr::count(data2$AnnualExam)[1,2]`) and had health insurance (`r round(plyr::count(data2$NoInsurance)[1,2]/sum(plyr::count(data2$NoInsurance)[,2])*100, 1)`%, *n* = `r plyr::count(data2$NoInsurance)[1,2]`). 
+
+In the past four months, most participants reported having had vaginal sex (`r round(plyr::count(data2$VagSex_4months)[2,2]/sum(plyr::count(data2$VagSex_4months)[,2])*100, 1)`%, *n* = `r plyr::count(data2$VagSex_4months)[2,2]`) and oral sex (`r round(plyr::count(data2$OralSex_4months)[2,2]/sum(plyr::count(data2$OralSex_4months)[,2])*100, 1)`%, *n* = `r plyr::count(data2$VagSex_4months)[2,2]`), and `r round(plyr::count(data2$AnalSex_4months)[2,2]/sum(plyr::count(data2$AnalSex_4months)[,2])*100, 1)`% (*n* = `r plyr::count(data2$AnalSex_4months)[2,2]`) had anal sex. 
+The average number of sexual partners in the previous 4 months was `r round(summary(data2$Partners_4months)[4], 1)` people (SD = `r round(sd(data2$Partners_4months, na.rm = TRUE), 1)`, range = `r round(range(data2$Partners_4months, na.rm = TRUE), 1)[1]` - `r round(range(data2$Partners_4months, na.rm = TRUE), 1)[2]`). The average number of lifetime sex partners was `r round(summary(data2$Partners_ever), 1)` people (SD = `r round(sd(data2$Partners_ever , na.rm = TRUE), 1)`, range = `r round(range(data2$Partners_ever , na.rm = TRUE), 1)[1]` - `r round(range(data2$Partners_ever , na.rm = TRUE), 1)[2]`). 
+The average number of sexual risks (e.g., been in a correctional facility, homelessness, injected street drugs) reported was `r round(summary(data2$risk)[4], 1)`(SD = `r round(sd(data2$risk , na.rm = TRUE), 1)`, range = `r round(range(data2$risk , na.rm = TRUE), 1)[1]` - `r round(range(data2$risk , na.rm = TRUE), 1)[2]`). The most common sexual risk behaviors reported were having sex while high on drugs or alcohol (`r round(plyr::count(data2$SexWhileHigh)[2,2]/sum(plyr::count(data2$SexWhileHigh)[,2])*100, 1)`%, *n* = `r plyr::count(data2$SexWhileHigh)[2,2]`), and having been a victim of domestic violence (`r round(plyr::count(data2$DomesticAbuse)[2,2]/sum(plyr::count(data2$DomesticAbuse)[,2])*100, 1)`%, *n* = `r plyr::count(data2$DomesticAbuse)[2,2]`). 
+Only `r round(sum(plyr::count(data2$Condoms_4months)[1:2,2])/sum(plyr::count(data2$Condoms_4months)[,2])*100, 1)`% (*n* = `r sum(plyr::count(data2$Condoms_4months)[1:2,2])` always used condoms consistently over the past 4 months.
+More women (`r round(plyr::count(data[which(data2$Sex == 2), ]$Condoms_4months)[4,2]/sum(plyr::count(data[which(data2$Sex == 2), ]$Condoms_4months)[,2])*100, 1)`%, *n* = `r plyr::count(data[which(data2$Sex == 2), ]$Condoms_4months)[4,2]`) reported never using condoms than men (`r round(plyr::count(data[which(data2$Sex == 1), ]$Condoms_4months)[4,2]/sum(plyr::count(data[which(data2$Sex == 1), ]$Condoms_4months)[,2])*100, 1)`%, *n* = `r plyr::count(data[which(data2$Sex == 1), ]$Condoms_4months)[4,2]`). 
+
+Condom beliefs had an average score of `r round(summary(data2$condom_belief_total), 1)` (SD = `r round(sd(data2$condom_belief_total), 1)`, range = `r range(data2$condom_belief_total)[1]`- `r range(data2$condom_belief_total)[2]`). 
+Few participants (`r round(sum(plyr::count(data2$CondomsEffectivePrevention)[6:7,2])/sum(plyr::count(data2$CondomsEffectivePrevention)[,2])*100, 1)`%, *n* = `r sum(plyr::count(data2$CondomsEffectivePrevention)[6:7,2])`) agreed/strongly agreed that condoms were an effective method to prevent the spread of STIs, `r round(sum(plyr::count(data2$CondomsEffectiveBC)[6:7,2])/sum(plyr::count(data2$CondomsEffectiveBC)[,2])*100, 1)`% (*n* = `r sum(plyr::count(data2$CondomsEffectiveBC)[6:7,2])` believed that condoms were an effective method of birth control, and `r round(sum(plyr::count(data2$ComfortableTalkingCondoms)[6:7,2])/sum(plyr::count(data2$ComfortableTalkingCondoms)[,2])*100, 1)`% (*n* = `r sum(plyr::count(data2$ComfortableTalkingCondoms)[6:7,2])` believed that it was easy to suggest to their partner that they use condoms. 
+The average STI stigma score was `r round(summary(data2$STD_stigma)[4], 1)` (SD = `r round(sd(data2$STD_stigma, na.rm = TRUE), 1)`, range: `r round(range(data2$STD_stigma, na.rm = TRUE)[1], 1)` - `r round(range(data2$STD_stigma, na.rm = TRUE)[2], 1)`).
+Regarding stigma, `r round(plyr::count(data2$Responsible_STD)[1,2]/sum(plyr::count(data2$Responsible_STD)[,2])*100, 1)`% (*n* = `r plyr::count(data2$Afraid_STD)[1,2]`) were not at all afraid of people with STIs, and only `r round(sum(plyr::count(data2$Responsible_STD)[3:4,2])/sum(plyr::count(data2$Responsible_STD)[,2])*100, 1)`% (*n* = `r sum(plyr::count(data2$Responsible_STD)[3:4,2])`) strongly agreed/agreed that those who had an STI were responsible for their own disease; however, `r round(sum(plyr::count(data2$Concerned_STD)[3:4,2])/sum(plyr::count(data2$Concerned_STD)[,2])*100, 1)`% (*n* = `r sum(plyr::count(data2$Concerned_STD)[3:4,2])`) were at least somewhat concerned that they would be discriminated against for having an STI. 
+
+```{r, echo = FALSE}
+##Table 2
+tab2loclist <- list(data2$WhereTestedSTD)
+tab2locrows <- c("WhereTestedSTD")
+tab2locv1 <- GetNBdata(tab2loclist, tab2locrows, data2)
+tab2locv2 <- dataNBPercent(tab2locv1, data2)
+tab2whyrows <- c("DoctorAsked", "HealthInsurance","AvailableatChurch", "RegularScreening", "ConcernedatRisk", "MarriageLicense", "SomeoneAsked", "NewRelationship", "FeltSick", "SomeOtherReason")
+tab2why <- getData(tab2whyrows, data2, 1)
+tab2whyv2 <- dataPercent(tab2why, data2)
+rownames(tab2whyv2) <- c("Doctor asked", "To apply for health insurance", "Screening was available at church or church sponsored center", "Routine part of regular health screenings", "Because you were concerned you were at risk for HIV", "Someone asked me to get tested with them", "Entered into a new relationship", "Apply for a marriage license", "Did not feel well", "Other")
+rownames(tab2locv2) <- c("Clinic or health center", "Health Department", "Doctor’s office or HMO", "Emergency room", "Hospital outpatient department", "Church", "Community Center", "Other place", "Don't know/Remember")
+Newrow1 <- ""
+Newrow2 <- ""
+Tab2v1 <- rbind(Newrow1, tab2locv2, Newrow2, tab2whyv2)
+Tab2v2 <- cbind(rownames(Tab2v1), Tab2v1[,1])
+
+Tab2v2 <- apply(Tab2v2, 2, as.character)
+Tab2v2[1,1] <- "Location of STI Test"
+Tab2v2[11,1] <- "Reasons for STI Test*"
+Tab2v2 <- data.frame(Tab2v2)
+
+```
+```{r, echo=FALSE, results='asis'}
+Tab2v2 <- regulartable(Tab2v2, col_keys = c("X1", "X2"))
+Tab2v2 <- set_header_labels(Tab2v2, X1 = "Variables", X2 = "N (%)")
+#TabComregta <- add_header(TabComregta, V1 = "Characteristics", overall = "Overall N (%)" top = TRUE)
+Tab2v2 <- add_footer(Tab2v2, X1 = "*Responses are not mutually exclusive")
+#TabComregta <- merge_h(TabComregta, part = "header")
+#TabComregta <- merge_v(TabComregta, part = "header")
+Tab2v2 <- merge_at(Tab2v2, i = 1, j = 1:2, part = "footer")
+Tab2v2 <- add_header(Tab2v2, X1 = "Table 2. Reasons and Locations for Most Recent STI Test")
+Tab2v2 <- merge_at(Tab2v2, i = 1, j = 1:2, part = "header")
+ft2 <- theme_flex_apa(Tab2v2)
+ft2 <- autofit(ft2)
+htmltools_value(ft2)
+```
+
+### Receipt of STI Testing
+
+More than half the sample reported being tested for a STI at least once in their life (`r round(plyr::count(data2$STD_everr)[2,2]/sum(plyr::count(data2$STD_everr)[,2])*100, 1)`%, *n* = `r plyr::count(data2$STD_everr)[2,2]`), with `r round(plyr::count(data2$EverGonorrhea)[2,2]/sum(plyr::count(data2$EverGonorrhea)[,2])*100, 1)`% (n = `r plyr::count(data2$EverGonorrhea)[1,2]`) having been tested for gonorrhea, `r round(plyr::count(data2$EverChlamydia)[2,2]/sum(plyr::count(data2$EverChlamydia)[,2])*100, 1)`% (*n* = `r plyr::count(data2$EverChlamydia)[2,2]`) for chlamydia, and `r round(plyr::count(data2$EverSyphilis)[2,2]/sum(plyr::count(data2$EverSyphilis)[,2])*100, 1)`% (*n* = `r plyr::count(data2$EverSyphilis)[2,2]`) for syphilis. 
+In the past 12 months `r round(plyr::count(data2$STD_12mos)[2,2]/sum(plyr::count(data2$STD_12mos)[,2])*100, 1)`% (n = `r plyr::count(data2$STD_12mos)[2,2]`), `r round(plyr::count(data2$GonorrheaLast12Months)[2,2]/sum(plyr::count(data2$GonorrheaLast12Months)[,2])*100, 1)`% (*n* = `r plyr::count(data2$GonorrheaLast12Months)[2,2]`) had been tested for gonorrhea, `r round(plyr::count(data2$ChlamydiaLast12Months)[2,2]/sum(plyr::count(data2$ChlamydiaLast12Months)[,2])*100, 1)`% (*n* = `r plyr::count(data2$ChlamydiaLast12Months)[2,2]`) for chlamydia, and `r round(plyr::count(data2$SyphilisLast12Months)[2,2]/sum(plyr::count(data2$SyphilisLast12Months)[,2])*100, 1)`% (*n* = `r plyr::count(data2$SyphilisLast12Months)[2,2]`) for syphilis. 
+Most were tested at a doctor’s office (`r round(plyr::count(data2$WhereTestedSTD)[3,2]/sum(plyr::count(data2$WhereTestedSTD)[,2])*100, 1)`%, *n* = `r plyr::count(data2$WhereTestedSTD)[3,2]`), or clinic (`r round(plyr::count(data2$WhereTestedSTD)[1,2]/sum(plyr::count(data2$WhereTestedSTD)[,2])*100, 1)`%, *n* = `r plyr::count(data2$WhereTestedSTD)[1,2]`). 
+The most frequently reported reasons for getting tested were that their doctor asked them if they wanted to be tested (`r round(plyr::count(data2$DoctorAsked)[2,2]/sum(plyr::count(data2$DoctorAsked)[,2])*100, 1)`%, *n* = `r plyr::count(data2$DoctorAsked)[2,2]`) and because they were concerned that they were at risk (`r round(plyr::count(data2$ConcernedatRisk)[2,2]/sum(plyr::count(data2$ConcernedatRisk)[,2])*100, 1)`%, *n* = `r plyr::count(data2$ConcernedatRisk)[2,2]`). 
+See Table 2 for additional testing locations and reasons for testing.
+The average support score from family, friends, and other church members to get tested for an STI was `r round(summary(data2$SupportSTI)[4], 1)` (SD = `r round(sd(data2$SupportSTI, na.rm=TRUE), 1)`, range: `r range(data2$SupportSTI, na.rm=TRUE)[1]` - `r range(data2$SupportSTI, na.rm=TRUE)[2]`). 
+Doctors (`r round(plyr::count(data2$DoctorSupport_recode)[7,2]/sum(plyr::count(data2$DoctorSupport_recode)[,2])*100, 1)`%, *n* = `r plyr::count(data2$DoctorSupport_recode)[7,2]`) and partners (`r round(plyr::count(data2$PartnerSupport_recode)[7,2]/sum(plyr::count(data2$PartnerSupport_recode)[,2])*100, 1)`%, *n* = `r plyr::count(data2$PartnerSupport_recode)[7,2]`) were the most likely to support individuals receiving an STI test. 
+The most frequently reported health screenings obtained by both male and female participants in the last 4 months were blood pressure (`r round(plyr::count(data2$BloodPressure_4months)[2,2]/sum(plyr::count(data2$BloodPressure_4months)[,2])*100, 1)`%, *n* = `r plyr::count(data2$BloodPressure_4months)[2,2]`), cholesterol `r (round(plyr::count(data2$Cholesterol_4months)[2,2]/sum(plyr::count(data2$Cholesterol_4months)[,2])*100, 1))`%, n = `r plyr::count(data2$Cholesterol_4months)[2,2]`), and blood glucose (`r (round(plyr::count(data2$Bloodglucose_4months)[2,2]/sum(plyr::count(data2$Bloodglucose_4months)[,2])*100, 1))`%, *n* = `r plyr::count(data2$Bloodglucose_4months)[2,2]`).
+
+### Factors Associated with STI Testing
+
+In the case of all three STIs (gonorrhea, syphilis, and chlamydia), marital status was significantly associated with getting tested, p = `r round(suppressWarnings(chisq.test(data2$Marital_Status, data2$GonorrheaLast12Months)$p.value), 3)`, p = `r round(suppressWarnings(chisq.test(data2$Marital_Status, data2$SyphilisLast12Months)$p.value), 3)`, and p = `r round(suppressWarnings(chisq.test(data2$Marital_Status, data2$ChlamydiaLast12Months)$p.value), 3)`, respectively. 
+For the continuous variables and gonorrhea testing, support towards getting tested (p = `r myttest(data2$SupportSTI, data$GonorrheaLast12Months)` was significant. 
+For syphilis testing, support towards getting tested (p = `r myttest(data2$SupportSTI, data2$SyphilisLast12Months)`), was significant. 
+For chlamydia testing, condom beliefs (p = `r myttest(data2$condom_belief_total, data$ChlamydiaLast12Months)`), was significant. 
+In the logistic regression analyses conducted, as shown in Table 3, significant factors related to gonorrhea, chlamydia, and syphilis testing in the previous four months at baseline included marital status, condom beliefs, and religiosity, and support for STI testing. 
+```{r, echo = FALSE, results='asis'}
+##Table 3 
+moduleGon <- lm(data2$GonorrheaLast12Months ~ data2$Sex + data2$Risky_sex_total + data2$Marital_Status +  data2$SupportSTI + data2$relig_sum + data2$Monthly_Income +   data2$Condoms_4months +  data2$STD_stigma +   data2$condom_belief_total, data = data2)
+
+moduleChl <- lm(data2$ChlamydiaLast12Months ~ data2$Sex + data2$Risky_sex_total + data2$Marital_Status +  data2$SupportSTI + data2$relig_sum + data2$Monthly_Income +   data2$Condoms_4months +  data2$STD_stigma +   data2$condom_belief_total, data = data2)
+moduleSyp <- lm(data2$SyphilisLast12Months ~ data2$Sex + data2$Risky_sex_total + data2$Marital_Status +  data2$SupportSTI + data2$relig_sum + data2$Monthly_Income +   data2$Condoms_4months +  data2$STD_stigma +   data2$condom_belief_total, data = data2)
+
+OutputGon <- capture.output(ols_step_backward_p(moduleGon, prem = .1))
+OutputChl <- capture.output(ols_step_backward_p(moduleChl, prem = .1))
+OutputSyp <- capture.output(ols_step_backward_p(moduleSyp, prem = .1))
+
+Output_needed_Gon <- param_est(OutputGon)
+Output_needed_Chl <- param_est(OutputChl)
+Output_needed_Syp <- param_est(OutputSyp)
+
+odds_ratio_Gon <- round(exp(Output_needed_Gon$Beta),2)
+odds_ratio_Chl <- round(exp(as.numeric(as.character(Output_needed_Chl$Beta))),2)
+odds_ratio_Syp <- round(exp(Output_needed_Syp$Beta),2)
+
+conf_int_Gon <- round(cbind(exp(Output_needed_Gon$lower), exp(Output_needed_Gon$upper)),2)
+conf_int_Chl <- round(cbind(exp(as.numeric(as.character(Output_needed_Chl$lower))), exp(as.numeric(as.character(Output_needed_Chl$upper)))),2)
+conf_int_Syp <- round(cbind(exp(Output_needed_Syp$lower), exp(Output_needed_Syp$upper)),2)
+
+output_Gon <- data.frame(Output_needed_Gon[,1], odds_ratio_Gon, conf_int_Gon)
+output_Chl <- data.frame(Output_needed_Chl[,1], odds_ratio_Chl, conf_int_Chl)
+output_Syp <- data.frame(Output_needed_Syp[,1], odds_ratio_Syp, conf_int_Syp)
+
+labels <- c("Model", "Odds", "Lower", "Upper")
+colnames(output_Gon) <- labels
+colnames(output_Chl) <- labels
+colnames(output_Syp) <-labels
+
+##breaking it apart for bomb ass tables
+Marital_Gon <- paste0(output_Gon[1,2], " ", "(", output_Gon[1,3], ",", " ", output_Gon[1,4], ")")
+Support_Gon <- paste0(output_Gon[2,2], " ", "(", output_Gon[2,3], ",", " ", output_Gon[2,4], ")")
+
+Marital_Chl <- paste0(output_Chl[1,2], " ", "(", output_Chl[1,3], ",", " ", output_Chl[1,4], ")")
+Relig_Chl <- paste0(output_Chl[2,2], " ", "(", output_Chl[2,3], ",", " ", output_Chl[2,4], ")")
+ConBel_Chl <- paste0(output_Chl[3,2], " ", "(", output_Chl[3,3], ",", " ", output_Chl[3,4], ")")
+
+Marital_Syp <- paste0(output_Syp[1,2], " ", "(", output_Syp[1,3], ",", " ", output_Syp[1,4], ")")
+Relig_Syp <- paste0(output_Syp[2,2], " ", "(", output_Syp[2,3], ",", " ", output_Syp[2,4], ")")
+ConBel_Syp <- paste0(output_Syp[3,2], " ", "(", output_Syp[3,3], ",", " ", output_Syp[3,4], ")")
+
+STIRegr <- data.frame( Variable = c("Marital Status","STI Support", "Religiosity", "Condom Beliefs"),                     
+                         Gonorrhea = c(Marital_Gon, Support_Gon, "", ""),
+                         Chlamydia = c(Marital_Chl, "", Relig_Chl, ""),
+                         Syphilis = c(Marital_Syp, "", Relig_Syp, ConBel_Syp))
+
+Tab3v1 <- regulartable(STIRegr, col_keys = c("Variable", "Gonorrhea", "Chlamydia", "Syphilis"))
+Tab3v1 <- set_header_labels(Tab3v1, Variable = "Predictor Variables", Gonorrhea = "OR (95% CI)", Chlamydia = "OR (95% CI)", Syphilis = "OR (95% CI)")
+Tab3v1 <- add_header(Tab3v1, Variable = "", Gonorrhea = "Gonorrhea Testing", Chlamydia = "Chlamydia Testing", Syphilis = "Syphilis Testing",  top = TRUE)
+#Tab2v2 <- add_footer(Tab2v2, X1 = "*Responses are not mutually exclusive")
+#TabComregta <- merge_h(TabComregta, part = "header")
+#TabComregta <- merge_v(TabComregta, part = "header")
+#Tab2v2 <- merge_at(Tab2v2, i = 1, j = 1:2, part = "footer")
+Tab3v1 <- add_header(Tab3v1, Variable = "Table 3.  Multivariate Logistic Regression Analysis: STI Testing Last four months")
+Tab3v1 <- merge_at(Tab3v1, i = 1, j = 1:4, part = "header")
+Tab3v2 <- theme_flex_apa(Tab3v1)
+Tab3v2 <- autofit(Tab3v2)
+htmltools_value(Tab3v2)
+
+```
+
+# Discussion
+
+To our knowledge, this study is one of the few to explore receipt of STI testing among church and community members in Black churches. 
+The majority of participants reported being tested for a STI at least once in their life, especially for gonorrhea and chlamydia. 
+Still, in the previous four months, only one in five of participants reported being tested for gonorrhea and chlamydia. 
+While to our knowledge, there are no published national statistics of the surveillance rates in the general population or in African Americans in regards to STI testing, this sample has a higher testing rate than previous studies with African Americans [@RN1041]. 
+The most commonly reported locations for receiving an STI test were at doctor’s offices and clinics, which is consistent with the national statistics [@RN965]. 
+The reasons for being tested included: doctor inquiry, concerned about personal risk, and testing as a routine part of regular health screenings. 
+These results are consistent with previous research that finds that one of the most effective strategies for getting tested for STIs, is communication between healthcare providers and their patients [@RN1039]. 
+Given that many participants reported that they received an STI test was because their physician suggested it, efforts to continue to facilitate patient-doctor communication around STI testing and risk are needed. 
+Church-based STI education should incorporate strategies to assist individuals in identifying and reducing their level of risk, providing linkage to STI care, and empowering both community and congregation members to request STI testing at their physician offices and health centers.
+
+Participants also reported that their doctors and partners were most likely to support them in getting tested for STIs. 
+This study found that congregants who felt high levels of support, were more likely to have been screened for Gonorrhea in the previous 12 months. 
+Conversely, participants also reported that friends and partners were least likely to support getting annual STI screenings. 
+This finding is congruent with previous studies which found that, among African American church going populations, one of the barriers to getting screened for STIs was high levels of STI stigma and shame [@hood2011unveiling; @RN850].
+Interventions that focus on increasing social support and decreasing STI stigma may be beneficial to increasing the number of people getting tested. 
+In addition, condom use beliefs were significantly related to getting tested.
+Specifically, higher levels of condom comfort and belief in their usefulness were significantly associated with receiving a gonorrhea, chlamydia, and syphilis test. 
+Past studies found that churches were not likely to discuss or share information about condoms and their benefits [@RN1043; @RN1044; @RN768; @RN950]; however, as churches become increasingly comfortable with positively discussing past taboo topics (e.g., sex, same-sex relationships, HIV), new information is needed on the readiness of Black churches to address STI testing and condom use.
+
+Religiosity and engagement in religious behavior was associated with Chlamydia and Syphilis testing in the past 12 months. 
+This may be a possible ceiling effect for religiosity in the sample due to recruitment from churches. 
+Past studies have found that African American church members who regularly attend church tend to be healthier and are more likely to use health care services [@whitt2008pilot]. 
+A large proportion of participants were unmarried. 
+Unmarried individuals are more likely to have more sexual partners than married individuals. 
+Church and health organizations working together may be an effective strategy to address sexual health needs of single populations who may be at risk for STIs.
+Most African American church-based sexual health programs have primarily focused on adolescents [@powell2017facilitators; @RN1044]. 
+Considering the high number of participants’ self-reported lifetime sexual partners, expanding the focus of sexual health to single adults, may be more beneficial in addressing STI disparities. 
+
+The current study is one of few to identify factors related to STI testing among an African American churchgoing population. Yet, this study had its limitations. 
+Church members were largely represented by African American women, participants’ household incomes were fairly high, and most had health insurance.
+Yet, other health promotion-related studies in faith-based settings have also been among people of higher socioeconomic status and found an overrepresentation of women [@RN1047; @RN1048; @RN1049; @RN1050; @RN1051; @RN673] ( Hébert et al., 2013; Leone et al., 2016; Mcneill et al., 2018; ). 
+A pilot STI testing interpretation study in the Midwest, this study is limited by the sample size and the types of church denominations included. 
+Therefore, these findings may not generalize to churches in other geographical areas and representative of other denominations. 
+Future research is needed to better understand factors related to STI testing among this population. 
+Also, there is a need for more research on STI screening among African American heterosexual men, who were not well represented in the current sample. 
+
+# Conclusions 
+
+For African American churches to assist in expanding the reach of STI screening services within the communities they serve, there is a need to better understand the STI testing practices of churchgoing populations. 
+This study identified factors (marital status, STI support, religiosity, and condom use beliefs) related to STI testing practices, which should be considered when designing faith-based testing interventions with African American church populations. 
+Collaborating with churches in these efforts may be an expedient public health strategy that could have a significant impact on increasing STI screening rates among African Americans. 
+
+
+\newpage
+
+# References
+```{r create_r-references, echo=FALSE}
+r_refs(file = "r-references1.bib")
+
+```
+
+
+\begingroup
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
+
+<div id = "refs"></div>
+\endgroup
